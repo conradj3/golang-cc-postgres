@@ -1,0 +1,15 @@
+apiVersion: keda.k8s.io/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{ .Release.Name }}-scaledobject
+spec:
+  scaleTargetRef:
+    deploymentName: {{ .Release.Name }}-deployment
+  pollingInterval: 10   # Optional. Default: 30 seconds
+  cooldownPeriod: 30    # Optional. Default: 300 seconds
+  maxReplicaCount: 10   # Optional. Default: 100
+  triggers:
+    - type: postgresql
+      metadata:
+        connection: {{ .Values.postgresDb.connString }}
+        query: "SELECT COUNT(*) FROM queue_table"
