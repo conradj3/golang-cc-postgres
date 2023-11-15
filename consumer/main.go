@@ -6,18 +6,32 @@ import (
 	"fmt"
 	"log"
 	"time"
-
+	"net/http"
+	"os"
 	_ "github.com/lib/pq"
 )
 
 var (
-	dbConnString        = "postgres://user:password@postgres:5432/queue?sslmode=disable"
-	queueTable          = "message_queue"
-	desiredMessageCount = 5
+	queueTable = "message_queue"
+	desiredMessageCount = 1
 )
 
 func main() {
+	log.Println("Consumer started")
+
+	http.HandleFunc("/health", func(http.ResponseWriter, *http.Request){})
+
+	go func() {
+		log.Fatal(http.ListenAndServe(":8080", nil))
+	}()
+
+	dbConnString := os.Getenv("DB_CONN_STRING")
+	log.Println("dbConnString")
+	log.Println(dbConnString)
+
 	ctx := context.Background()
+
+	log.Println("Opening postgres connection")
 
 	db, err := sql.Open("postgres", dbConnString)
 	if err != nil {
@@ -25,35 +39,37 @@ func main() {
 	}
 	defer db.Close()
 
-	log.Println("Consumer started")
+	
 	log.Println("Listening for messages in the queue...")
 
-	var processedMessages int
+	processedMessages := 0
 
-	for processedMessages < desiredMessageCount {
-		message, err := dequeueMessage(ctx, db)
-		if err != nil {
-			if err != sql.ErrNoRows {
-				log.Println("Error dequeuing message:", err)
-			}
+	message, err := dequeueMessage(ctx, db)
+
+	if err != nil {
+		if err != sql.ErrNoRows {
+			log.Println("Error dequeuing message:", err)
+			os.Exit(1)
+		} 
+
+	} else {
+		log.Println("Processing message:", message)
+		processedMessages++
+		// Simulate message processing
+		if processMessageErr := processMessage(message); processMessageErr != nil {
+			log.Println("Error processing message:", processMessageErr)
 		} else {
-			log.Println("Processing message:", message)
-			processedMessages++
-			// Simulate message processing
-			if processMessageErr := processMessage(message); processMessageErr != nil {
-				log.Println("Error processing message:", processMessageErr)
-			} else {
-				log.Println("Message processed successfully")
-			}
+			log.Println("Message processed successfully")
 		}
 	}
+	message, err = dequeueMessage(ctx, db)
 
 	log.Println("Consumer finished")
 }
 
 func dequeueMessage(ctx context.Context, db *sql.DB) (string, error) {
 	var message string
-
+	log.Println("Dequeue message!")
 	err := db.QueryRowContext(ctx, fmt.Sprintf("DELETE FROM %s WHERE id = (SELECT id FROM %s ORDER BY timestamp LIMIT 1) RETURNING message", queueTable, queueTable)).Scan(&message)
 	if err != nil {
 		if err != sql.ErrNoRows {
