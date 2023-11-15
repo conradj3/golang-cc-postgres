@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "consumer.fullname" . }}
+  name: {{ include "consumer.fullname" . }}-deployment
   labels:
     {{- include "consumer.labels" . | nindent 4 }}
 spec:
@@ -27,6 +27,7 @@ spec:
       serviceAccountName: {{ include "consumer.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      restartPolicy: Always
       containers:
         - name: {{ .Chart.Name }}
           securityContext:
@@ -37,17 +38,27 @@ spec:
             - containerPort: 8080
           env:
             - name: DB_CONN_STRING
-              value: "{{ .Values.postgresDb.connString }}"
+              value: "{{ .Values.postgres.connString }}"
             - name: QUEUE_TABLE
-              value: "{{ .Values.postgresDb.queueTable }}"
+              value: "{{ .Values.postgres.queueTable }}"
+            # - name: POSTGRES_USER
+            #   value: "{{ .Values.postgres.user }}"
+            # - name: POSTGRES_PASSWORD
+            #   value: "{{ .Values.postgres.password }}"
+            # - name: POSTGRES_DB
+            #   value: "{{ .Values.postgres.db }}"
           livenessProbe:
             httpGet:
-              path: /
-              port: http
+              path: /health
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 3
           readinessProbe:
             httpGet:
-              path: /
-              port: http
+              path: /health
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 3
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       {{- with .Values.nodeSelector }}

@@ -12,12 +12,22 @@ function EnqueueRandomMessages($url, $count) {
     for ($i = 0; $i -lt $count; $i++) {
         $message = GetRandomString
         $body = @{ message = $message } | ConvertTo-Json
-        Invoke-RestMethod -Uri $url -Method POST -Body $body -ContentType "application/json"
+        # Invoke-RestMethod -Uri $url -Method POST -Body $body -ContentType "application/json"
+
+        try {
+            Invoke-RestMethod -Uri $url -Method POST -Body $body -ContentType "application/json"
+        } catch {
+            # Dig into the exception to get the Response details.
+            # Note that value__ is not a typo.
+            Write-Host "StatusCode:" $_.Exception.Response.StatusCode.value__ 
+            Write-Host "StatusDescription:" $_.Exception.Response.StatusDescription
+        }
+
         Write-Host "Enqueued message: $message"
     }
 }
 
-$Url = "http://localhost:8080/enqueue"
-$Count = 10
+$Url = "(your ingress or localhost:port if port forwarding)/enqueue"
+$Count = 100
 
 EnqueueRandomMessages $Url $Count

@@ -7,17 +7,19 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
+
 
 	_ "github.com/lib/pq"
 )
 
-var (
-	dbConnString = "postgres://user:password@postgres:5432/queue?sslmode=disable"
-	queueTable   = "message_queue"
-)
+// "os/exec"
+// "bytes"
+// "regexp"
 
 func main() {
 	http.HandleFunc("/enqueue", enqueueMessageHandler)
+	http.HandleFunc("/health", func(http.ResponseWriter, *http.Request){})
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
@@ -26,7 +28,13 @@ type RequestBody struct {
 }
 
 func enqueueMessageHandler(w http.ResponseWriter, r *http.Request) {
+	
+	dbConnString := os.Getenv("DB_CONN_STRING")
+	queueTable := os.Getenv("QUEUE_TABLE")
+
 	db, err := sql.Open("postgres", dbConnString)
+	log.Println("DB Connection string: ", dbConnString)
+	log.Println("DB Queue Table: ", queueTable)
 	if err != nil {
 		log.Println("Error connecting to database:", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
@@ -56,6 +64,7 @@ func enqueueMessageHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println("Error enqueueing message:", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		_, err = db.ExecContext(r.Context(), fmt.Sprintf("SELECT COUNT(*) FROM %s", queueTable))
 		return
 	}
 

@@ -1,0 +1,14 @@
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: postgres-trigger-authentication
+  namespace: keda-demo # must be same namespace as the ScaledObject
+spec:
+  secretTargetRef: # Optional.
+  - parameter: password # Required.
+    name: postgres-password # Required.
+    key: password # Required.
+  # env: # Optional.
+  #   - parameter: password # Required.
+  #     name: POSTGRES_ # Required.
+  #     containerName: {container-name} # Optional. Default: scaleTargetRef.containerName of ScaledObject
